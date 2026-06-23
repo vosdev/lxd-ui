@@ -13,6 +13,7 @@ interface Props {
   dense?: boolean;
   iconClassname?: string;
   showBooting?: boolean;
+  classname?: string;
 }
 
 const StartInstanceBtn: FC<Props> = ({
@@ -22,6 +23,7 @@ const StartInstanceBtn: FC<Props> = ({
   dense = true,
   iconClassname,
   showBooting = false,
+  classname,
 }) => {
   const { handleStart, isLoading, isDisabled } = useInstanceStart(instance);
   const isRunning = isInstanceRunning(instance);
@@ -43,6 +45,7 @@ const StartInstanceBtn: FC<Props> = ({
           ? "Start"
           : "You do not have permission to start this instance"
       }
+      className={classnames("has-icon", classname ?? "is-dense")}
     >
       <Icon
         className={classnames(iconClassname, {
@@ -50,7 +53,7 @@ const StartInstanceBtn: FC<Props> = ({
         })}
         name={showSpinner ? "spinner" : "play"}
       />
-      {hasLabel && <span>Start instance</span>}
+      {classname ? <span>Start</span> : hasLabel && <span>Start instance</span>}
     </Button>
   );
 };
