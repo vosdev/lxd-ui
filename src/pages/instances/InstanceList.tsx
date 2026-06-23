@@ -68,6 +68,7 @@ import PageHeader from "components/PageHeader";
 import InstanceDetailPanel from "./InstanceDetailPanel";
 import {
   mediumScreenBreakpoint,
+  sidePanelBreakpoint,
   useIsScreenBelow,
 } from "context/useIsScreenBelow";
 import InstanceUsageMainMemory from "pages/instances/InstanceUsageMainMemory";
@@ -127,6 +128,7 @@ const InstanceList: FC = () => {
   const [processingNames, setProcessingNames] = useState<string[]>([]);
   const isSmallScreen = useIsScreenBelow();
   const isMediumScreen = useIsScreenBelow(mediumScreenBreakpoint);
+  const isSidePanelScreen = !useIsScreenBelow(sidePanelBreakpoint);
 
   if (!project && !isAllProjects) {
     return <>Missing project</>;
@@ -343,14 +345,18 @@ const InstanceList: FC = () => {
     },
     {
       "aria-label": "Actions",
-      className: classnames({ "u-hide": panelParams.instance }),
       style: { width: `${COLUMN_WIDTHS[ACTIONS]}px` },
     },
   ];
 
+
   const visibleHeaders = visibleHeaderColumns(
     headers,
     userHidden.concat(sizeHidden),
+  ).map((h) =>
+    !h.content
+      ? { ...h, className: classnames(h.className, { "u-hide": panelParams.instance || isSmallScreen }) }
+      : h,
   );
 
   const getRows = (hiddenCols: string[]): MainTableRow[] => {
@@ -417,7 +423,7 @@ const InstanceList: FC = () => {
             ),
             role: "cell",
             className: classnames("u-align--right", {
-              "u-hide": panelParams.instance,
+              "u-hide": panelParams.instance || isSmallScreen,
             }),
             "aria-label": "Actions",
             style: { width: `${COLUMN_WIDTHS[ACTIONS]}px` },
@@ -431,7 +437,13 @@ const InstanceList: FC = () => {
 
     const instanceRows: MainTableRow[] = filteredInstances.map((instance) => {
       const openSummary = () => {
-        panelParams.openInstanceSummary(instance.name, instance.project);
+        if (isSidePanelScreen) {
+          panelParams.openInstanceSummary(instance.name, instance.project);
+        } else if (isSmallScreen) {
+          void navigate(
+            `${ROOT_PATH}/ui/project/${encodeURIComponent(instance.project)}/instance/${encodeURIComponent(instance.name)}`,
+          );
+        }
       };
 
       const ipv4 = getIpAddresses(instance, "inet");
@@ -445,7 +457,9 @@ const InstanceList: FC = () => {
 
       return {
         key: getInstanceKey(instance),
-        className: hasActivePanel ? "u-row-selected" : "u-row",
+        className: classnames(hasActivePanel ? "u-row-selected" : "u-row", {
+          "u-row-no-click": !isSidePanelScreen && !isSmallScreen,
+        }),
         name: getInstanceKey(instance),
         columns: [
           {
@@ -567,7 +581,7 @@ const InstanceList: FC = () => {
             ),
             role: "cell",
             className: classnames("u-align--right", {
-              "u-hide": panelParams.instance,
+              "u-hide": panelParams.instance || isSmallScreen,
             }),
             "aria-label": "Actions",
             style: { width: `${COLUMN_WIDTHS[ACTIONS]}px` },
