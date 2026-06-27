@@ -108,11 +108,25 @@
     font-weight: bold;
     vertical-align: middle;
 
-    &--running { color: $color-positive; }
-    &--stopped { color: $color-mid; }
-    &--error   { color: $color-negative; }
-    &--frozen  { color: $color-information; }
-    &--ready   { color: $color-information; }
+    &--running {
+      color: $color-positive;
+    }
+
+    &--stopped {
+      color: $color-mid;
+    }
+
+    &--error {
+      color: $color-negative;
+    }
+
+    &--frozen {
+      color: $color-information;
+    }
+
+    &--ready {
+      color: $color-information;
+    }
   }
 
   .status-header {
