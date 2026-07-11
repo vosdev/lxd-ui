@@ -21,6 +21,9 @@ const MARGIN = { top: 6, right: 1, bottom: 22, left: 52 };
 const WINDOW_SECONDS = 30 * 60;
 const GRID_FRACTIONS = [0, 0.25, 0.5, 0.75, 1];
 const LABELED_FRACTIONS = [0, 0.5, 1];
+// approximate height of the tooltip (up to 4 lines + padding), used to flip
+// it below the point instead of clipping above the graph
+const TOOLTIP_HEIGHT = 70;
 
 const formatTimeAgo = (seconds: number): string => {
   if (seconds < 5) {
@@ -125,6 +128,10 @@ const UsageGraph: FC<Props> = ({
 
   const hoverPoint =
     hoverIndex !== null ? visiblePoints[hoverIndex] : undefined;
+  const hoverY = hoverPoint
+    ? getY(hoverPoint.value + (hoverPoint.secondaryValue ?? 0))
+    : 0;
+  const flipTooltipBelow = hoverY - MARGIN.top < TOOLTIP_HEIGHT;
 
   return (
     <div className="usage-graph" ref={containerRef}>
@@ -212,7 +219,10 @@ const UsageGraph: FC<Props> = ({
           className="usage-graph__tooltip"
           style={{
             left: Math.min(Math.max(getX(hoverPoint.time), 70), width - 70),
-            top: getY(hoverPoint.value + (hoverPoint.secondaryValue ?? 0)) - 8,
+            top: flipTooltipBelow ? hoverY + 8 : hoverY - 8,
+            transform: flipTooltipBelow
+              ? "translate(-50%, 0)"
+              : "translate(-50%, -100%)",
           }}
         >
           <div className="u-text--muted">

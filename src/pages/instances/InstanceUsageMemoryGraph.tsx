@@ -14,6 +14,12 @@ const InstanceUsageMemoryGraph: FC<Props> = ({ instance }) => {
   const series = getMemorySeries(getMetricHistory(), instance);
   const current = series[series.length - 1];
 
+  // scale the y-axis to the highest total reported in the visible window,
+  // rather than just the latest sample. A memory limit change (or a single
+  // transient bad reading right after one) would otherwise make the axis
+  // snap to an inconsistent scale for one sample.
+  const maxValue = series.reduce((max, point) => Math.max(max, point.total), 0);
+
   return (
     <UsageGraph
       points={series.map((point) => ({
@@ -22,7 +28,7 @@ const InstanceUsageMemoryGraph: FC<Props> = ({ instance }) => {
         secondaryValue: point.cached,
         total: point.used + point.cached,
       }))}
-      maxValue={current?.total ?? 0}
+      maxValue={maxValue}
       formatValue={humanFileSize}
       label={
         current
