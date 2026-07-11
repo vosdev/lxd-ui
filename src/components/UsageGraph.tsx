@@ -4,7 +4,7 @@ export interface UsageGraphPoint {
   time: number; // seconds since epoch
   value: number;
   secondaryValue?: number; // stacked on top of value, e.g. cached memory
-  total?: number; // shown as "Total" in the hover tooltip, e.g. total memory
+  total?: number; // shown as "Total" in the hover tooltip, e.g. used + cached memory
 }
 
 interface Props {
