@@ -4,6 +4,7 @@ export interface UsageGraphPoint {
   time: number; // seconds since epoch
   value: number;
   secondaryValue?: number; // stacked on top of value, e.g. cached memory
+  total?: number; // shown as "Total" in the hover tooltip, e.g. total memory
 }
 
 interface Props {
@@ -226,11 +227,11 @@ const UsageGraph: FC<Props> = ({
               {secondaryLabel}: {formatValue(hoverPoint.secondaryValue)}
             </div>
           )}
+          {hoverPoint.total !== undefined && (
+            <div>Total: {formatValue(hoverPoint.total)}</div>
+          )}
         </div>
       )}
-      <div className="p-text--small u-no-margin--bottom u-text--muted">
-        {label}
-      </div>
     </div>
   );
 };

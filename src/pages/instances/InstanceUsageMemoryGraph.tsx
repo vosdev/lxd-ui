@@ -20,6 +20,7 @@ const InstanceUsageMemoryGraph: FC<Props> = ({ instance }) => {
         time: point.time,
         value: point.used,
         secondaryValue: point.cached,
+        total: point.total,
       }))}
       maxValue={current?.total ?? 0}
       formatValue={humanFileSize}
