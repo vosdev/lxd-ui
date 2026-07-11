@@ -20,6 +20,9 @@ interface Props {
   children: ReactNode;
 }
 
+// 120 entries at the 15 second poll interval covers 30 minutes of history
+const MAX_HISTORY_ENTRIES = 120;
+
 let history: MetricHistoryEntry[] = [];
 
 export const MetricHistoryProvider: FC<Props> = ({ children }) => {
@@ -28,7 +31,7 @@ export const MetricHistoryProvider: FC<Props> = ({ children }) => {
       value={{
         getMetricHistory: () => history,
         setMetricEntry: (newEntry: MetricHistoryEntry) => {
-          history = [...history.slice(-5), newEntry];
+          history = [...history.slice(-(MAX_HISTORY_ENTRIES - 1)), newEntry];
         },
       }}
     >
