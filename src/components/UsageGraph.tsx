@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type FC, type MouseEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FC,
+  type MouseEvent,
+} from "react";
 
 export interface UsageGraphPoint {
   time: number; // seconds since epoch
@@ -27,13 +34,15 @@ interface Props {
 }
 
 const HEIGHT = 140;
-const MARGIN = { top: 6, right: 1, bottom: 22, left: 52 };
+// left margin fits the widest y-axis label (e.g. "512.0 MiB"); top margin
+// leaves headroom so the topmost label isn't clipped at the graph edge
+const MARGIN = { top: 14, right: 1, bottom: 22, left: 64 };
 const WINDOW_SECONDS = 30 * 60;
 const GRID_FRACTIONS = [0, 0.25, 0.5, 0.75, 1];
 const LABELED_FRACTIONS = [0, 0.5, 1];
-// approximate height of the tooltip, used to flip it below the point instead
-// of clipping above the graph
-const TOOLTIP_HEIGHT = 80;
+const TOOLTIP_HALF_WIDTH = 70;
+// fallback height for the first frame, before the tooltip is measured
+const TOOLTIP_FALLBACK_HEIGHT = 90;
 
 const formatTimeAgo = (seconds: number): string => {
   if (seconds < 5) {
@@ -68,8 +77,10 @@ const UsageGraph: FC<Props> = ({
   showTotalInTooltip,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [hoverTime, setHoverTime] = useState<number | null>(null);
+  const [tooltipHeight, setTooltipHeight] = useState(TOOLTIP_FALLBACK_HEIGHT);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -175,10 +186,32 @@ const UsageGraph: FC<Props> = ({
   const hoverTopY = hoverEntries.length
     ? Math.min(...hoverEntries.map((entry) => getY(entry.top)))
     : 0;
-  const flipTooltipBelow = hoverTopY - MARGIN.top < TOOLTIP_HEIGHT;
+  const hoverBottomY = hoverEntries.length
+    ? Math.max(...hoverEntries.map((entry) => getY(entry.top)))
+    : 0;
   const tooltipTotal = hoverEntries
     .filter((_, index) => visibleSeries[index]?.stacked)
     .reduce((sum, entry) => sum + entry.value, 0);
+
+  // keep the whole tooltip box inside the graph: prefer placing it above the
+  // highest marker; if that clips the top, place it below the lowest marker;
+  // then clamp so it never overflows the top or bottom edge. tooltipHeight is
+  // measured from the rendered element (see useLayoutEffect below).
+  const tooltipAboveTop = hoverTopY - 8 - tooltipHeight;
+  const tooltipTop = Math.max(
+    2,
+    Math.min(
+      tooltipAboveTop >= 2 ? tooltipAboveTop : hoverBottomY + 8,
+      HEIGHT - tooltipHeight - 2,
+    ),
+  );
+
+  useLayoutEffect(() => {
+    const measured = tooltipRef.current?.offsetHeight;
+    if (measured && measured !== tooltipHeight) {
+      setTooltipHeight(measured);
+    }
+  });
 
   return (
     <div className="usage-graph" ref={containerRef}>
@@ -301,12 +334,14 @@ const UsageGraph: FC<Props> = ({
       {hoverTime !== null && hoverEntries.length > 0 && (
         <div
           className="usage-graph__tooltip"
+          ref={tooltipRef}
           style={{
-            left: Math.min(Math.max(getX(hoverTime), 70), width - 70),
-            top: flipTooltipBelow ? hoverTopY + 8 : hoverTopY - 8,
-            transform: flipTooltipBelow
-              ? "translate(-50%, 0)"
-              : "translate(-50%, -100%)",
+            left: Math.min(
+              Math.max(getX(hoverTime), TOOLTIP_HALF_WIDTH),
+              width - TOOLTIP_HALF_WIDTH,
+            ),
+            top: tooltipTop,
+            transform: "translateX(-50%)",
           }}
         >
           <div className="u-text--muted">
