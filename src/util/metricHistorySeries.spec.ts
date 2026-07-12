@@ -1,4 +1,8 @@
-import { getCpuSeries, getMemorySeries } from "util/metricHistorySeries";
+import {
+  getCpuSeries,
+  getFilesystemSeries,
+  getMemorySeries,
+} from "util/metricHistorySeries";
 import type { LxdInstance } from "types/instance";
 import type { MetricHistoryEntry } from "context/metricHistory";
 import type { LxdMetricGroup } from "types/metrics";
@@ -78,6 +82,40 @@ const memoryEntry = (
       help: "",
       type: "GAUGE",
       metrics: [{ labels, value: String(total) }],
+    },
+  ],
+});
+
+interface FsEntry {
+  device: string;
+  mountpoint: string;
+  free: number;
+  total: number;
+}
+
+const filesystemEntry = (
+  time: number,
+  filesystems: FsEntry[],
+): MetricHistoryEntry => ({
+  time,
+  metric: [
+    {
+      name: "lxd_filesystem_free_bytes",
+      help: "",
+      type: "GAUGE",
+      metrics: filesystems.map((fs) => ({
+        labels: { ...labels, device: fs.device, mountpoint: fs.mountpoint },
+        value: String(fs.free),
+      })),
+    },
+    {
+      name: "lxd_filesystem_size_bytes",
+      help: "",
+      type: "GAUGE",
+      metrics: filesystems.map((fs) => ({
+        labels: { ...labels, device: fs.device, mountpoint: fs.mountpoint },
+        value: String(fs.total),
+      })),
     },
   ],
 });
@@ -180,6 +218,78 @@ describe("getMemorySeries", () => {
     expect(getMemorySeries(history, instance)).toEqual([
       { time: 0, used: 400, cached: 100, total: 1000 },
       { time: 15, used: 450, cached: 150, total: 1000 },
+    ]);
+  });
+});
+
+describe("getFilesystemSeries", () => {
+  it("returns empty series on empty history", () => {
+    expect(getFilesystemSeries([], instance)).toEqual([]);
+  });
+
+  it("builds a percentage series for the root filesystem", () => {
+    const history = [
+      filesystemEntry(0, [
+        { device: "sda1", mountpoint: "/", free: 750, total: 1000 },
+      ]),
+      filesystemEntry(15, [
+        { device: "sda1", mountpoint: "/", free: 500, total: 1000 },
+      ]),
+    ];
+
+    expect(getFilesystemSeries(history, instance)).toEqual([
+      {
+        device: "/",
+        used: 500,
+        total: 1000,
+        points: [
+          { time: 0, value: 25 },
+          { time: 15, value: 50 },
+        ],
+      },
+    ]);
+  });
+
+  it("keeps the root filesystem first, other filesystems after", () => {
+    const history = [
+      filesystemEntry(0, [
+        { device: "sda1", mountpoint: "/", free: 500, total: 1000 },
+        { device: "sdb1", mountpoint: "/data", free: 200, total: 400 },
+      ]),
+    ];
+
+    const series = getFilesystemSeries(history, instance);
+
+    expect(series.map((item) => item.device)).toEqual(["/", "sdb1"]);
+    expect(series[1]).toEqual({
+      device: "sdb1",
+      used: 200,
+      total: 400,
+      points: [{ time: 0, value: 50 }],
+    });
+  });
+
+  it("collects a separate series per device across snapshots", () => {
+    const history = [
+      filesystemEntry(0, [
+        { device: "sda1", mountpoint: "/", free: 900, total: 1000 },
+        { device: "sdb1", mountpoint: "/data", free: 100, total: 200 },
+      ]),
+      filesystemEntry(15, [
+        { device: "sda1", mountpoint: "/", free: 800, total: 1000 },
+        { device: "sdb1", mountpoint: "/data", free: 50, total: 200 },
+      ]),
+    ];
+
+    const series = getFilesystemSeries(history, instance);
+
+    expect(series[0].points).toEqual([
+      { time: 0, value: 10 },
+      { time: 15, value: 20 },
+    ]);
+    expect(series[1].points).toEqual([
+      { time: 0, value: 50 },
+      { time: 15, value: 75 },
     ]);
   });
 });

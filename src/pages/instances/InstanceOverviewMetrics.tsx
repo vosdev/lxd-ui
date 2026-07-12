@@ -1,12 +1,12 @@
-import { useState, type FC } from "react";
+import type { FC } from "react";
 import { getInstanceMetricReport } from "util/metricSelectors";
-import { Spinner, Button } from "@canonical/react-components";
+import { Spinner } from "@canonical/react-components";
 import type { LxdInstance } from "types/instance";
 import { useAuth } from "context/auth";
-import InstanceUsageFilesystem from "pages/instances/InstanceUsageFilesystem";
 import { useMetrics } from "context/useMetrics";
 import InstanceUsageCpuGraph from "pages/instances/InstanceUsageCpuGraph";
 import InstanceUsageMemoryGraph from "pages/instances/InstanceUsageMemoryGraph";
+import InstanceUsageFilesystemGraph from "pages/instances/InstanceUsageFilesystemGraph";
 
 interface Props {
   instance: LxdInstance;
@@ -15,7 +15,6 @@ interface Props {
 
 const InstanceOverviewMetrics: FC<Props> = ({ instance, onFailure }) => {
   const { isRestricted } = useAuth();
-  const [isShowAllFilesystems, setShowAllFilesystems] = useState(false);
 
   const {
     data: serverMetrics = [],
@@ -37,7 +36,9 @@ const InstanceOverviewMetrics: FC<Props> = ({ instance, onFailure }) => {
     );
   }
 
-  const hasOtherFilesystems = instanceMetrics.otherFilesystems.length > 0;
+  const hasFilesystem =
+    !!instanceMetrics.rootFilesystem ||
+    instanceMetrics.otherFilesystems.length > 0;
 
   return (
     <>
@@ -67,44 +68,15 @@ const InstanceOverviewMetrics: FC<Props> = ({ instance, onFailure }) => {
               </td>
             </tr>
             <tr className="metric-row">
-              <th className="u-text--muted">Root filesystem</th>
+              <th className="u-text--muted">Filesystem</th>
               <td>
-                {instanceMetrics.rootFilesystem ? (
-                  <InstanceUsageFilesystem
-                    filesystem={instanceMetrics.rootFilesystem}
-                  />
+                {hasFilesystem ? (
+                  <InstanceUsageFilesystemGraph instance={instance} />
                 ) : (
                   "-"
                 )}
               </td>
             </tr>
-            {isShowAllFilesystems &&
-              instanceMetrics.otherFilesystems.map((item) => (
-                <tr className="metric-row" key={item.device}>
-                  <th className="u-text--muted">{item.device}</th>
-                  <td>
-                    <InstanceUsageFilesystem filesystem={item} />
-                  </td>
-                </tr>
-              ))}
-            {hasOtherFilesystems && (
-              <tr className="metric-row">
-                <th></th>
-                <td>
-                  <Button
-                    appearance="link"
-                    className="u-no-margin--bottom"
-                    onClick={() => {
-                      setShowAllFilesystems(!isShowAllFilesystems);
-                    }}
-                  >
-                    {isShowAllFilesystems
-                      ? "Hide other filesystems"
-                      : "Show other filesystems"}
-                  </Button>
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
       )}

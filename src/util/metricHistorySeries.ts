@@ -2,6 +2,7 @@ import type { LxdInstance } from "types/instance";
 import type { MetricHistoryEntry } from "context/metricHistory";
 import {
   getCpuUsage,
+  getFilesystemUsage,
   getMemoryUsage,
   type CpuUsage,
 } from "util/metricSelectors";
@@ -16,6 +17,18 @@ export interface MemorySeriesPoint {
   used: number; // bytes, excluding cache
   cached: number; // bytes
   total: number; // bytes
+}
+
+export interface FilesystemSeriesPoint {
+  time: number; // seconds since epoch
+  value: number; // usage in percent, 0 to 100
+}
+
+export interface FilesystemSeries {
+  device: string;
+  points: FilesystemSeriesPoint[];
+  used: number; // latest used bytes
+  total: number; // latest total bytes
 }
 
 // the LXD metrics endpoint serves cached responses for several seconds, so
@@ -102,6 +115,44 @@ export const getCpuSeries = (
   });
 
   return series;
+};
+
+export const getFilesystemSeries = (
+  history: MetricHistoryEntry[],
+  instance: LxdInstance,
+): FilesystemSeries[] => {
+  // one series per device, keyed by device name. Root ("/") is kept first,
+  // remaining devices follow in alphabetical order (as getFilesystemUsage
+  // already sorts them).
+  const byDevice = new Map<string, FilesystemSeries>();
+  const order: string[] = [];
+
+  history.forEach((entry) => {
+    const [root, others] = getFilesystemUsage(entry.metric, instance);
+    const filesystems = [...(root ? [root] : []), ...others];
+
+    filesystems.forEach((filesystem) => {
+      const used = filesystem.total - filesystem.free;
+      const value = filesystem.total > 0 ? (100 / filesystem.total) * used : 0;
+
+      let series = byDevice.get(filesystem.device);
+      if (!series) {
+        series = {
+          device: filesystem.device,
+          points: [],
+          used,
+          total: filesystem.total,
+        };
+        byDevice.set(filesystem.device, series);
+        order.push(filesystem.device);
+      }
+      series.points.push({ time: entry.time, value });
+      series.used = used;
+      series.total = filesystem.total;
+    });
+  });
+
+  return order.map((device) => byDevice.get(device) as FilesystemSeries);
 };
 
 export const getMemorySeries = (

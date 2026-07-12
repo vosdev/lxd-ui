@@ -11,14 +11,19 @@ interface Props {
 const InstanceUsageCpuGraph: FC<Props> = ({ instance }) => {
   const { getMetricHistory } = useMetricHistory();
   const series = getCpuSeries(getMetricHistory(), instance);
-  const current = series[series.length - 1];
 
   return (
     <UsageGraph
-      points={series}
+      series={[
+        {
+          name: "",
+          color: "#06c",
+          points: series,
+          fill: "solid",
+        },
+      ]}
       maxValue={100}
       formatValue={(value) => `${Math.round(value * 10) / 10}%`}
-      label={current ? `${Math.round(current.value * 100) / 100}%` : ""}
     />
   );
 };

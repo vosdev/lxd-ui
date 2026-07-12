@@ -16,21 +16,6 @@
     font-size: 0.75rem;
   }
 
-  .usage-graph__line {
-    fill: none;
-    stroke: #06c;
-    stroke-width: 1.5;
-  }
-
-  .usage-graph__area {
-    fill: #06c;
-  }
-
-  .usage-graph__area--secondary {
-    fill: #06c;
-    opacity: 0.3;
-  }
-
   .usage-graph__crosshair {
     stroke: $colors--theme--border-high-contrast;
     stroke-dasharray: 2 2;
@@ -38,7 +23,6 @@
   }
 
   .usage-graph__marker {
-    fill: #06c;
     stroke: $colors--theme--background-default;
     stroke-width: 1.5;
   }
@@ -61,5 +45,26 @@
     position: absolute;
     white-space: nowrap;
     z-index: 10;
+  }
+
+  .usage-graph__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.125rem 1rem;
+    margin-top: 0.25rem;
+  }
+
+  .usage-graph__legend-item {
+    align-items: center;
+    display: inline-flex;
+    gap: 0.375rem;
+  }
+
+  .usage-graph__legend-swatch {
+    border-radius: 2px;
+    display: inline-block;
+    flex-shrink: 0;
+    height: 0.75rem;
+    width: 0.75rem;
   }
 }

@@ -12,7 +12,6 @@ interface Props {
 const InstanceUsageMemoryGraph: FC<Props> = ({ instance }) => {
   const { getMetricHistory } = useMetricHistory();
   const series = getMemorySeries(getMetricHistory(), instance);
-  const current = series[series.length - 1];
 
   // scale the y-axis to the highest total reported in the visible window,
   // rather than just the latest sample. A memory limit change (or a single
@@ -22,23 +21,32 @@ const InstanceUsageMemoryGraph: FC<Props> = ({ instance }) => {
 
   return (
     <UsageGraph
-      points={series.map((point) => ({
-        time: point.time,
-        value: point.used,
-        secondaryValue: point.cached,
-        total: point.used + point.cached,
-      }))}
+      series={[
+        {
+          name: "used",
+          color: "#06c",
+          points: series.map((point) => ({
+            time: point.time,
+            value: point.used,
+          })),
+          stacked: true,
+          fill: "solid",
+        },
+        {
+          name: "cached",
+          color: "#06c",
+          points: series.map((point) => ({
+            time: point.time,
+            value: point.cached,
+          })),
+          stacked: true,
+          fill: "faint",
+          drawLine: false,
+        },
+      ]}
       maxValue={maxValue}
       formatValue={humanFileSize}
-      label={
-        current
-          ? humanFileSize(current.used + current.cached) +
-            " of " +
-            humanFileSize(current.total)
-          : ""
-      }
-      valueLabel="used"
-      secondaryLabel="cached"
+      showTotalInTooltip
     />
   );
 };
