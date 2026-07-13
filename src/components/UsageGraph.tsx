@@ -33,15 +33,17 @@ interface Props {
   showTotalInTooltip?: boolean; // add a "Total" line summing the stacked series
 }
 
-const HEIGHT = 140;
+const HEIGHT = 162;
 // left margin fits the widest y-axis label (e.g. "512.0 MiB"); top margin
 // leaves headroom so the topmost label isn't clipped at the graph edge
 const MARGIN = { top: 14, right: 1, bottom: 22, left: 64 };
 const WINDOW_SECONDS = 30 * 60;
 const GRID_FRACTIONS = [0, 0.25, 0.5, 0.75, 1];
 const LABELED_FRACTIONS = [0, 0.5, 1];
-const TOOLTIP_HALF_WIDTH = 70;
-// fallback height for the first frame, before the tooltip is measured
+// gap between the hovered point and the tooltip placed beside it
+const TOOLTIP_GAP = 12;
+// fallback size for the first frame, before the tooltip is measured
+const TOOLTIP_FALLBACK_WIDTH = 140;
 const TOOLTIP_FALLBACK_HEIGHT = 90;
 
 const formatTimeAgo = (seconds: number): string => {
@@ -80,7 +82,10 @@ const UsageGraph: FC<Props> = ({
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [hoverTime, setHoverTime] = useState<number | null>(null);
-  const [tooltipHeight, setTooltipHeight] = useState(TOOLTIP_FALLBACK_HEIGHT);
+  const [tooltipSize, setTooltipSize] = useState({
+    width: TOOLTIP_FALLBACK_WIDTH,
+    height: TOOLTIP_FALLBACK_HEIGHT,
+  });
 
   useEffect(() => {
     const container = containerRef.current;
@@ -193,23 +198,37 @@ const UsageGraph: FC<Props> = ({
     .filter((_, index) => visibleSeries[index]?.stacked)
     .reduce((sum, entry) => sum + entry.value, 0);
 
-  // keep the whole tooltip box inside the graph: prefer placing it above the
-  // highest marker; if that clips the top, place it below the lowest marker;
-  // then clamp so it never overflows the top or bottom edge. tooltipHeight is
-  // measured from the rendered element (see useLayoutEffect below).
-  const tooltipAboveTop = hoverTopY - 8 - tooltipHeight;
+  // place the tooltip beside the hovered point rather than on top of it:
+  // prefer the right side, fall back to the left when it wouldn't fit. Center
+  // it vertically on the markers and clamp within the plot area so it never
+  // overlaps the x-axis labels. Size is measured from the rendered element
+  // (see useLayoutEffect below).
+  const hoverX = hoverTime !== null ? getX(hoverTime) : 0;
+  const plotRight = width - MARGIN.right;
+  const fitsRight = hoverX + TOOLTIP_GAP + tooltipSize.width <= plotRight;
+  const tooltipLeft = fitsRight
+    ? hoverX + TOOLTIP_GAP
+    : Math.max(MARGIN.left, hoverX - TOOLTIP_GAP - tooltipSize.width);
+  const hoverMidY = (hoverTopY + hoverBottomY) / 2;
   const tooltipTop = Math.max(
-    2,
+    MARGIN.top,
     Math.min(
-      tooltipAboveTop >= 2 ? tooltipAboveTop : hoverBottomY + 8,
-      HEIGHT - tooltipHeight - 2,
+      hoverMidY - tooltipSize.height / 2,
+      plotBottom - tooltipSize.height,
     ),
   );
 
   useLayoutEffect(() => {
-    const measured = tooltipRef.current?.offsetHeight;
-    if (measured && measured !== tooltipHeight) {
-      setTooltipHeight(measured);
+    const element = tooltipRef.current;
+    if (!element) {
+      return;
+    }
+    const { offsetWidth, offsetHeight } = element;
+    if (
+      offsetWidth !== tooltipSize.width ||
+      offsetHeight !== tooltipSize.height
+    ) {
+      setTooltipSize({ width: offsetWidth, height: offsetHeight });
     }
   });
 
@@ -336,12 +355,8 @@ const UsageGraph: FC<Props> = ({
           className="usage-graph__tooltip"
           ref={tooltipRef}
           style={{
-            left: Math.min(
-              Math.max(getX(hoverTime), TOOLTIP_HALF_WIDTH),
-              width - TOOLTIP_HALF_WIDTH,
-            ),
+            left: tooltipLeft,
             top: tooltipTop,
-            transform: "translateX(-50%)",
           }}
         >
           <div className="u-text--muted">
